@@ -1,0 +1,10 @@
+apiVersion: taka.edu.pl/v1
+kind: PGDatabase
+metadata:
+  name: example-pgdatabase
+  namespace: testowy
+spec:
+  databaseName: exampledb2
+  username: exampleuser
+  password: examplepass
+  serviceName: example-service
