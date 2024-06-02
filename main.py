@@ -2,12 +2,16 @@ import kopf
 import os
 from kubernetes import client, config
 from kubernetes.config import ConfigException
-from controller import test_database_connection, create_database, delete_database
-from config import db_host
-from typing import Any, Dict
+from classes.postgresdatabase import PostgresDatabase
+
+db_host = os.environ.get('DB_HOST', 'localhost')
+db_user = os.environ.get('DB_USER', 'postgres')
+db_password = os.environ.get('DB_PASSWORD', 'postgres')
+
+db_instance = PostgresDatabase(db_host=db_host, admin_user=db_user, admin_password=db_password)
 
 @kopf.on.create('taka.edu.pl', 'v1', 'pgdatabases')
-def create_fn(body: Dict[str, Any], spec: Dict[str, Any], patch: Any, name: str, namespace: str, logger: Any, **kwargs: Any) -> None:
+def create_fn(body, spec, patch, namespace, **kwargs) -> None:
     database_name = spec.get('databaseName')
     username = spec.get('username')
     password = spec.get('password')
@@ -23,7 +27,7 @@ def create_fn(body: Dict[str, Any], spec: Dict[str, Any], patch: Any, name: str,
 
     v1 = client.CoreV1Api()
 
-    if create_database(database_name, username, password):
+    if db_instance.create_database(database_name, username, password):
         service = client.V1Service(
             metadata=client.V1ObjectMeta(name=service_name),
             spec=client.V1ServiceSpec(
@@ -33,18 +37,18 @@ def create_fn(body: Dict[str, Any], spec: Dict[str, Any], patch: Any, name: str,
         )
         v1.create_namespaced_service(namespace=namespace, body=service)
 
-        final_status = test_database_connection(db_host, database_name, username, password)
+        final_status = db_instance.test_database_connection()
         patch.status['state'] = final_status
     else:
         patch.status['state'] = 'Failed'
 
 @kopf.on.delete('taka.edu.pl', 'v1', 'pgdatabases')
-def delete_fn(spec: Dict[str, Any], name: str, namespace: str, logger: Any, **kwargs: Any) -> None:
+def delete_fn(spec, namespace, logger, **kwargs) -> None:
     database_name = spec.get('databaseName')
     username = spec.get('username')
     service_name = spec.get('serviceName')
 
-    if delete_database(database_name, username):
+    if db_instance.delete_database(database_name, username):
         logger.info(f"Database {database_name} and user {username} successfully deleted.")
     else:
         logger.warning(f"Failed to delete database {database_name} and user {username}.")
