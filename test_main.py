@@ -1,6 +1,5 @@
 import unittest
 from unittest import mock
-from kubernetes import client, config
 from kubernetes.config.config_exception import ConfigException
 from main import create_fn, delete_fn
 
