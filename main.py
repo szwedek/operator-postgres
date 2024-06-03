@@ -1,7 +1,7 @@
 import kopf
 import os
 from kubernetes import client, config
-from kubernetes.config import ConfigException
+from kubernetes.config.config_exception import ConfigException
 from classes.postgresdatabase import PostgresDatabase
 
 db_host = os.environ.get('DB_HOST', 'localhost')
@@ -41,6 +41,7 @@ def create_fn(body, spec, patch, namespace, **kwargs) -> None:
         patch.status['state'] = final_status
     else:
         patch.status['state'] = 'Failed'
+        kopf.event(body, type='Warning', reason='Failed', message='Failed to create database.')
 
 @kopf.on.delete('taka.edu.pl', 'v1', 'pgdatabases')
 def delete_fn(spec, namespace, logger, **kwargs) -> None:
@@ -55,7 +56,7 @@ def delete_fn(spec, namespace, logger, **kwargs) -> None:
 
     try:
         config.load_incluster_config()
-    except config.ConfigException:
+    except ConfigException:
         config.load_kube_config()
 
     v1 = client.CoreV1Api()
